@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useAuthProtection } from "@/hooks/useAuthProtection";
 
 interface Profile {
   id: string;
@@ -12,32 +12,28 @@ interface Profile {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
+  const { isAuthenticated, userId, isLoading: authLoading } = useAuthProtection({
+    redirectIfNotAuth: true,
+  });
   const supabase = createSupabaseClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only fetch profile if authenticated and we have a userId
+    if (!isAuthenticated || !userId) {
+      return;
+    }
+
     const fetchProfile = async () => {
       try {
-        // Get current user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          router.push("/login");
-          return;
-        }
-
         // Fetch profile from profiles table
         const { data, error: fetchError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", user.id)
+          .eq("id", userId)
           .single();
 
         if (fetchError) {
@@ -49,19 +45,22 @@ export default function DashboardPage() {
       } catch (err: any) {
         setError(err?.message || String(err));
       } finally {
-        setLoading(false);
+        setProfileLoading(false);
       }
     };
 
     fetchProfile();
-  }, [supabase, router]);
+  }, [isAuthenticated, userId, supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
+    // Router push happens automatically via middleware redirect
   };
 
-  if (loading) return <main style={{ padding: "2rem" }}>Loading…</main>;
+  // Show loading while checking authentication
+  if (authLoading || (isAuthenticated && profileLoading)) {
+    return <main style={{ padding: "2rem" }}>Loading…</main>;
+  }
 
   if (error)
     return <main style={{ padding: "2rem", color: "#b00020" }}>Error: {error}</main>;

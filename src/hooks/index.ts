@@ -4,3 +4,5 @@
  *   export { useBookmarks } from "./useBookmarks";
  *   export { useLocalStorage } from "./useLocalStorage";
  */
+
+export { useAuthProtection } from "./useAuthProtection";
