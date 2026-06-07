@@ -13,6 +13,15 @@ export const env = {
 
   /** Current runtime environment. */
   APP_ENV: process.env.APP_ENV ?? "development",
+
+  /** Supabase public client URL. */
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+
+  /** Supabase public anon key for browser usage. */
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+
+  /** Supabase service role key for secure server usage. */
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
 } as const;
 
 export type Env = typeof env;
