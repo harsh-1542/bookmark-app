@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useAuthProtection } from "@/hooks/useAuthProtection";
+import { deleteBookmark } from "@/app/actions/bookmarks";
+import { useRouter } from "next/navigation";
 
 interface Profile {
   id: string;
@@ -31,6 +33,10 @@ export default function DashboardPage() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingDeleteTitle, setPendingDeleteTitle] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
@@ -142,6 +148,21 @@ export default function DashboardPage() {
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${bm.is_public ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                       {bm.is_public ? 'Public' : 'Private'}
                     </span>
+                    <div className="mt-3 flex gap-2">
+                      <Link href={`/bookmarks/${bm.id}/edit`}>
+                        <a className="text-sm px-2 py-1 border rounded">Edit</a>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setPendingDeleteTitle(bm.title);
+                          setDeletingId(bm.id);
+                          setShowConfirm(true);
+                        }}
+                        className="text-sm px-2 py-1 border rounded text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -149,6 +170,44 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
+
+      {/* Confirm modal */}
+      {showConfirm && deletingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow max-w-md w-full">
+            <h3 className="text-lg font-semibold">Delete bookmark?</h3>
+            <p className="mt-2 text-sm text-gray-600">Are you sure you want to delete "{pendingDeleteTitle}"? This action cannot be undone.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => { setShowConfirm(false); setDeletingId(null); }} className="px-3 py-2 border rounded">Cancel</button>
+              <button
+                onClick={async () => {
+                  try {
+                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    // @ts-ignore-next-line
+                    const res = await deleteBookmark(deletingId);
+                    if (!res || res.success === false) {
+                      setError(res?.error ?? "Failed to delete bookmark");
+                      setShowConfirm(false);
+                      return;
+                    }
+                    // remove from state immediately
+                    setBookmarks((prev) => prev.filter((b) => b.id !== deletingId));
+                    setShowConfirm(false);
+                    setDeletingId(null);
+                  } catch (err: any) {
+                    setError(err?.message || String(err));
+                    setShowConfirm(false);
+                    setDeletingId(null);
+                  }
+                }}
+                className="px-3 py-2 bg-red-600 text-white rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

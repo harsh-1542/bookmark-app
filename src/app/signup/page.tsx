@@ -49,7 +49,18 @@ export default function SignupPage() {
         return;
       }
 
-      // On successful signup, redirect to onboarding
+      // On successful signup, attempt to send welcome email, then redirect to onboarding
+      try {
+        const { sendWelcomeEmail } = await import("@/app/actions/email");
+        // fire-and-forget; server action will handle errors gracefully
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore-next-line
+        sendWelcomeEmail(email);
+      } catch (e) {
+        // ignore email sending errors on the client — server action logs failures
+        console.error("Email send attempt failed", e);
+      }
+
       router.push("/onboarding");
     } catch (err: any) {
       setError(err?.message || String(err));

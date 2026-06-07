@@ -25,6 +25,12 @@ export const env = {
 
   /** Supabase service role key for secure server usage. */
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+
+  /** Resend API key for sending transactional emails (store in env). */
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? "",
+
+  /** From address for transactional emails e.g. 'Your App <no-reply@example.com>' */
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL ?? "no-reply@example.com",
 } as const;
 
 export type Env = typeof env;

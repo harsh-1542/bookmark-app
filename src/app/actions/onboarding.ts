@@ -15,13 +15,29 @@ export interface HandleValidationResult {
  * - Lowercase letters, numbers, hyphens, underscores
  * - Must start with a letter
  * - No consecutive hyphens or underscores
+ * - Cannot be a reserved system handle
  */
-export function validateHandleFormat(handle: string): HandleValidationResult {
+export async function validateHandleFormat(handle: string): Promise<HandleValidationResult> {
   if (!handle) {
     return { success: false, error: "Handle is required." };
   }
 
   const trimmed = handle.trim().toLowerCase();
+
+  // Reserved handles that cannot be used
+  const reserved = [
+    "admin",
+    "dashboard",
+    "login",
+    "signup",
+    "onboarding",
+    "bookmarks",
+    "api",
+    "app",
+    "help",
+    "support",
+    "system",
+  ];
 
   if (trimmed.length < 3) {
     return { success: false, error: "Handle must be at least 3 characters." };
@@ -40,7 +56,7 @@ export function validateHandleFormat(handle: string): HandleValidationResult {
   if (!/^[a-z0-9_-]+$/.test(trimmed)) {
     return {
       success: false,
-      error: "Handle can only contain letters, numbers, hyphens, and underscores.",
+      error: "Handle can only contain lowercase letters, numbers, hyphens, and underscores.",
     };
   }
 
@@ -52,23 +68,47 @@ export function validateHandleFormat(handle: string): HandleValidationResult {
     };
   }
 
+  // Cannot end with hyphen or underscore
+  if (/[-_]$/.test(trimmed)) {
+    return {
+      success: false,
+      error: "Handle cannot end with a hyphen or underscore.",
+    };
+  }
+
+  // Check if handle is reserved
+  if (reserved.includes(trimmed)) {
+    return {
+      success: false,
+      error: "This handle is reserved. Please choose another.",
+    };
+  }
+
   return { success: true };
 }
 
 /**
  * Checks if handle is already taken in the database.
- * Query: SELECT COUNT(*) FROM profiles WHERE LOWER(handle) = $1
+ * Uses .maybeSingle() to check if any matching row exists.
  */
 export async function checkHandleUniqueness(
   handle: string
 ): Promise<HandleValidationResult> {
+  const normalizedHandle = handle.trim().toLowerCase();
+
+  if (!normalizedHandle) {
+    return { success: false, error: "Handle is required." };
+  }
+
   const supabase = createSupabaseServerClient();
 
   try {
+    // Check if any row exists with this handle
     const { data, error } = await supabase
       .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("handle", handle.toLowerCase());
+      .select("id")
+      .eq("handle", normalizedHandle)
+      .maybeSingle();
 
     if (error) {
       console.error("Handle uniqueness check error:", error);
@@ -78,8 +118,8 @@ export async function checkHandleUniqueness(
       };
     }
 
-    // If count > 0, handle is taken
-    if (data && data.length > 0) {
+    // If data is not null, handle exists
+    if (data) {
       return { success: false, error: "Handle is already taken." };
     }
 
@@ -102,7 +142,7 @@ export async function completeOnboarding(
   handle: string
 ): Promise<HandleValidationResult> {
   // Validate format
-  const formatCheck = validateHandleFormat(handle);
+  const formatCheck = await validateHandleFormat(handle);
   if (!formatCheck.success) {
     return formatCheck;
   }

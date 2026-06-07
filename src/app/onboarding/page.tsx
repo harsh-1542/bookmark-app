@@ -1,21 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { completeOnboarding, validateHandleFormat } from "@/app/actions/onboarding";
 
 export default function OnboardingPage() {
   const [handle, setHandle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Real-time format validation as user types
+  useEffect(() => {
+    const validate = async () => {
+      if (!handle) {
+        setValidationError(null);
+        return;
+      }
+
+      const result = await validateHandleFormat(handle);
+      if (!result.success) {
+        setValidationError(result.error || "Invalid handle");
+      } else {
+        setValidationError(null);
+      }
+    };
+
+    validate();
+  }, [handle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Client-side format validation
-    const validation = validateHandleFormat(handle);
-    if (!validation.success) {
-      setError(validation.error || "Invalid handle");
+    // Prevent submission if format validation failed
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (!handle.trim()) {
+      setError("Handle is required.");
       return;
     }
 
@@ -35,6 +59,8 @@ export default function OnboardingPage() {
     }
   };
 
+  const isValid = handle.trim().length > 0 && !validationError;
+
   return (
     <main style={{ maxWidth: 640, margin: "2rem auto", padding: "0 1rem" }}>
       <h1>Complete Your Profile</h1>
@@ -49,18 +75,26 @@ export default function OnboardingPage() {
             onChange={(e) => setHandle(e.target.value)}
             placeholder="e.g., harsh, johnsmith, alex123"
             required
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
+            style={{ display: "block", width: "100%", padding: 8, marginTop: 4, borderColor: validationError ? "#b00020" : undefined }}
           />
           <small style={{ display: "block", marginTop: 4, color: "#666" }}>
-            3-30 characters, letters/numbers/hyphens/underscores. Must start with a letter.
+            3–30 characters. Start with a letter. Lowercase letters, numbers, hyphens, underscores allowed.
           </small>
         </label>
 
-        {error && (
-          <div style={{ color: "#b00020", marginBottom: 8 }}>{error}</div>
+        {validationError && (
+          <div style={{ color: "#b00020", marginBottom: 8, fontSize: "0.875rem" }}>
+            {validationError}
+          </div>
         )}
 
-        <button type="submit" disabled={loading} style={{ padding: "8px 16px" }}>
+        {error && (
+          <div style={{ color: "#b00020", marginBottom: 8 }}>
+            {error}
+          </div>
+        )}
+
+        <button type="submit" disabled={loading || !isValid} style={{ padding: "8px 16px", opacity: !isValid ? 0.5 : 1 }}>
           {loading ? "Setting up profile…" : "Complete Onboarding"}
         </button>
       </form>
